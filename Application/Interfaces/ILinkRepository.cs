@@ -9,5 +9,6 @@ public interface ILinkRepository
     Task<List<Link>> GetAllAsync();
     Task<List<Link>> GetByUserIdAsync(long userId);
     Task AddAsync(Link link);
+    Task DeleteAsync(Link link);
     Task SaveChangesAsync();
 }

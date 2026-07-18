@@ -111,6 +111,9 @@ app.MapOpenApi();
 // Serves the Scalar interactive API reference UI at /scalar/v1
 app.MapScalarApiReference();
 
+// Maps the Links REST API endpoints (POST/GET/DELETE /api/urls, GET /api/stats)
+app.MapLinksApi();
+
 // Maps the redirect endpoint GET /{shortUrl} from Endpoints/UrlRedirectEndpoint.cs
 app.MapUrlRedirect();
 

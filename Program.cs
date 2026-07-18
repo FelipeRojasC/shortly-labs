@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Scalar.AspNetCore;
 using Serilog;
+using Shortly.Application.DTOs;
 using Shortly.Application.Interfaces;
 using Shortly.Application.Services;
 using Shortly.Endpoints;
@@ -78,11 +79,17 @@ builder.Services.AddScoped<ILinkService, LinkService>();
 // Builds the application with all registered configurations
 var app = builder.Build();
 
-// In non-development environments, uses a friendly error page
-if (!app.Environment.IsDevelopment())
+// Global exception handler: ensures unhandled errors also respect content negotiation
+// (replaces the default "/Error" redirect for API consumers, returning JSON/XML instead of HTML)
+app.UseExceptionHandler(errorApp =>
 {
-    app.UseExceptionHandler("/Error");
-}
+    errorApp.Run(async context =>
+    {
+        var error = new ErrorResponse { Error = "Internal server error" };
+        var result = error.Negotiated(StatusCodes.Status500InternalServerError);
+        await result.ExecuteAsync(context);
+    });
+});
 
 // Redirects HTTP requests to HTTPS automatically
 // app.UseHttpsRedirection();

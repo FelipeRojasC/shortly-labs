@@ -1,0 +1,108 @@
+@startuml c4-code-linkservice
+
+skin rose
+hide empty members
+hide empty method
+left to right direction
+
+skinparam  {
+    defaultFontName             "Ubuntu"
+    defaultFontSize             16
+    shadowing                   true
+    RoundCorner                 10
+    packageBackgroundColor      LightGoldenRodYellow
+    classBackgroundColor        AntiqueWhite
+    backgroundColor             transparent
+    dpi                         120
+}
+
+title Code diagram (Level 4) for URL Service — Link creation flow
+
+package "Endpoints" #palegreen {
+    class LinksApiEndpoints <<static>> {
+        + MapLinksApi(app: WebApplication): void
+    }
+}
+
+package "Content Negotiation" #lightblue {
+    class NegotiatedResult<T> {
+        - data: T
+        - statusCode: int
+        + ExecuteAsync(httpContext: HttpContext): Task
+    }
+
+    class NegotiationExtensions <<static>> {
+        + Negotiated<T>(data: T, statusCode: int): IResult
+        + ReadNegotiatedBody<T>(request: HttpRequest): Task<T?>
+    }
+}
+
+package "Application" #lavender {
+    interface ILinkService {
+        + CreateLink(url: string, userId: long): Task<LinkResponse>
+        + GetLinkById(id: long): Task<LinkResponse>
+        + GetAllLinks(): Task<List<LinkResponse>>
+        + DeleteLink(id: long): Task
+    }
+
+    class LinkService {
+        - _linkRepository: ILinkRepository
+        - _logger: ILogger<LinkService>
+        + CreateLink(url: string, userId: long): Task<LinkResponse>
+        + GetLinkById(id: long): Task<LinkResponse>
+        + DeleteLink(id: long): Task
+    }
+
+    class CreateLinkRequest {
+        + Url: string
+        + UserId: long?
+    }
+
+    class LinkResponse {
+        + Id: long
+        + Url: string
+        + ShortUrl: string
+        + Clicks: int
+        + {static} From(link: Link): LinkResponse
+    }
+
+    interface ILinkRepository {
+        + GetByIdAsync(id: long): Task<Link?>
+        + AddAsync(link: Link): Task
+        + DeleteAsync(link: Link): Task
+        + SaveChangesAsync(): Task
+    }
+}
+
+package "Infrastructure" #wheat {
+    class LinkRepository {
+        - _context: AppDbContext
+        + GetByIdAsync(id: long): Task<Link?>
+        + AddAsync(link: Link): Task
+        + DeleteAsync(link: Link): Task
+    }
+}
+
+package "Domain" #palegreen {
+    class Link {
+        + Id: long
+        + Url: string
+        + ShortUrl: string
+        + Clicks: int
+        + UserId: long
+        + IncrementClicks(): void
+    }
+}
+
+LinksApiEndpoints ..> NegotiationExtensions : uses
+LinksApiEndpoints ..> CreateLinkRequest : reads body as
+LinksApiEndpoints ..> ILinkService : calls
+NegotiationExtensions ..> NegotiatedResult : creates
+ILinkService <|.. LinkService : implements
+LinkService ..> ILinkRepository : depends on
+LinkService ..> LinkResponse : returns
+LinkResponse ..> Link : maps from
+ILinkRepository <|.. LinkRepository : implements
+LinkRepository ..> Link : persists
+
+@enduml

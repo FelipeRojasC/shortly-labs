@@ -1,0 +1,30 @@
+@startuml c4-component-redirect-service
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+title Component diagram for Redirect Service
+
+Container(apiGateway, "API Gateway", "ASP.NET Core / YARP", "Routes external requests.")
+ContainerDb(urlDb, "URL Database", "PostgreSQL", "Stores link records (read replica).")
+ContainerDb(redirectCache, "Redirect Cache", "Redis", "shortUrl -> originalUrl mapping.")
+Container(clickBroker, "Click Events Broker", "RabbitMQ", "Queues click events for async processing.")
+
+Container_Boundary(redirectService, "Redirect Service") {
+    Component(redirectEndpoint, "Redirect Endpoint", "Minimal API (UrlRedirectEndpoint)", "Exposes GET /{shortUrl}. Issues the HTTP redirect response.")
+    Component(cacheLookup, "Cache Lookup", "IDistributedCache client", "Looks up shortUrl -> originalUrl in Redis (cache-first strategy).")
+    Component(fallbackReader, "Fallback Reader", "ILinkRepository (read-only)", "Falls back to the database on a cache miss, then repopulates the cache.")
+    Component(clickPublisher, "Click Event Publisher", "IMessagePublisher (RabbitMQ client)", "Publishes a click event asynchronously; does not block the redirect response.")
+}
+
+Rel(apiGateway, redirectEndpoint, "Forwards /{shortUrl}", "HTTP/REST")
+Rel(redirectEndpoint, cacheLookup, "Requests mapping from")
+Rel(cacheLookup, redirectCache, "Reads", "Redis protocol")
+Rel(cacheLookup, fallbackReader, "On cache miss, delegates to")
+Rel(fallbackReader, urlDb, "Reads", "SQL (read replica)")
+Rel(fallbackReader, redirectCache, "Repopulates cache after DB read", "Redis protocol")
+Rel(redirectEndpoint, clickPublisher, "Fires and forgets click event")
+Rel(clickPublisher, clickBroker, "Publishes click event", "AMQP (async)")
+
+SHOW_LEGEND()
+
+@enduml

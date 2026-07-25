@@ -9,8 +9,8 @@ ContainerDb(urlDb, "URL Database", "PostgreSQL", "Stores link records.")
 ContainerDb(redirectCache, "Redirect Cache", "Redis", "shortUrl -> originalUrl mapping.")
 
 Container_Boundary(urlService, "URL Service") {
-    Component(linksEndpoint, "Links API Endpoint", "Minimal API (LinksApiEndpoints)", "Exposes POST/GET/DELETE /api/urls. Reads Content-Type, writes negotiated response.")
-    Component(contentNegotiator, "Content Negotiation", "NegotiatedResult<T>, ReadNegotiatedBody<T>", "Serializes/deserializes JSON or XML based on Accept/Content-Type headers.")
+    Component(linksEndpoint, "Links API Endpoint", "Minimal API (proposed)", "Exposes POST/GET/DELETE /api/urls. Reads Content-Type, writes negotiated response.")
+    Component(contentNegotiator, "Content Negotiation", "Custom IResult (proposed)", "Serializes/deserializes JSON or XML based on Accept/Content-Type headers.")
     Component(linkService, "Link Service", "ILinkService / LinkService", "Business logic: create, retrieve, delete links; validates input.")
     Component(linkRepository, "Link Repository", "ILinkRepository / LinkRepository (EF Core)", "Data access for the Link entity.")
     Component(cacheInvalidator, "Cache Invalidator", "IDistributedCache client", "Populates/invalidates the Redirect Cache on create or delete.")

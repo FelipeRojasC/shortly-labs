@@ -1,4 +1,4 @@
-@startuml c4-code-linkservice
+@startuml c4-code-redirect
 
 skin rose
 hide empty members
@@ -16,46 +16,28 @@ skinparam  {
     dpi                         120
 }
 
-title Code diagram (Level 4) for URL Service — Link creation flow
+title Code diagram (Level 4) — Redirect flow in the current Shortly monolith
 
 package "Endpoints" #palegreen {
-    class LinksApiEndpoints <<static>> {
-        + MapLinksApi(app: WebApplication): void
-    }
-}
-
-package "Content Negotiation" #lightblue {
-    class NegotiatedResult<T> {
-        - data: T
-        - statusCode: int
-        + ExecuteAsync(httpContext: HttpContext): Task
-    }
-
-    class NegotiationExtensions <<static>> {
-        + Negotiated<T>(data: T, statusCode: int): IResult
-        + ReadNegotiatedBody<T>(request: HttpRequest): Task<T?>
+    class UrlRedirectEndpoint <<static>> {
+        + MapUrlRedirect(app: WebApplication): void
     }
 }
 
 package "Application" #lavender {
     interface ILinkService {
         + CreateLink(url: string, userId: long): Task<LinkResponse>
-        + GetLinkById(id: long): Task<LinkResponse>
+        + IncrementClicks(linkId: long): Task<LinkResponse>
+        + GetLink(shortUrl: string): Task<LinkResponse>
         + GetAllLinks(): Task<List<LinkResponse>>
-        + DeleteLink(id: long): Task
+        + GetLinksByUserId(userId: long): Task<List<LinkResponse>>
     }
 
     class LinkService {
         - _linkRepository: ILinkRepository
         - _logger: ILogger<LinkService>
-        + CreateLink(url: string, userId: long): Task<LinkResponse>
-        + GetLinkById(id: long): Task<LinkResponse>
-        + DeleteLink(id: long): Task
-    }
-
-    class CreateLinkRequest {
-        + Url: string
-        + UserId: long?
+        + GetLink(shortUrl: string): Task<LinkResponse>
+        + IncrementClicks(linkId: long): Task<LinkResponse>
     }
 
     class LinkResponse {
@@ -68,8 +50,7 @@ package "Application" #lavender {
 
     interface ILinkRepository {
         + GetByIdAsync(id: long): Task<Link?>
-        + AddAsync(link: Link): Task
-        + DeleteAsync(link: Link): Task
+        + GetByShortUrlAsync(shortUrl: string): Task<Link?>
         + SaveChangesAsync(): Task
     }
 }
@@ -78,8 +59,7 @@ package "Infrastructure" #wheat {
     class LinkRepository {
         - _context: AppDbContext
         + GetByIdAsync(id: long): Task<Link?>
-        + AddAsync(link: Link): Task
-        + DeleteAsync(link: Link): Task
+        + GetByShortUrlAsync(shortUrl: string): Task<Link?>
     }
 }
 
@@ -94,15 +74,14 @@ package "Domain" #palegreen {
     }
 }
 
-LinksApiEndpoints ..> NegotiationExtensions : uses
-LinksApiEndpoints ..> CreateLinkRequest : reads body as
-LinksApiEndpoints ..> ILinkService : calls
-NegotiationExtensions ..> NegotiatedResult : creates
+UrlRedirectEndpoint ..> ILinkService : "1: GetLink(shortUrl)"
+UrlRedirectEndpoint ..> ILinkService : "2: IncrementClicks(link.Id)"
 ILinkService <|.. LinkService : implements
 LinkService ..> ILinkRepository : depends on
 LinkService ..> LinkResponse : returns
 LinkResponse ..> Link : maps from
 ILinkRepository <|.. LinkRepository : implements
 LinkRepository ..> Link : persists
+LinkService ..> Link : "calls link.IncrementClicks()"
 
 @enduml

@@ -1,0 +1,22 @@
+@startuml c4-context
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+title System Context diagram for Shortly
+
+Person(endUser, "End User", "A person who wants to shorten URLs, share them, and access short links.")
+Person(admin, "Administrator", "Manages users and monitors platform usage.")
+
+System(shortly, "Shortly", "Allows users to create, manage, and access shortened URLs, and tracks click statistics.")
+
+System_Ext(browserClient, "Web Browser / HTTP Client", "Any client that follows a short URL (curl, browsers, apps).")
+SystemDb_Ext(emailProvider, "Email Provider", "Sends account-related notifications (future: password reset, usage alerts).")
+
+Rel(endUser, shortly, "Creates and manages short URLs, views own stats", "HTTPS")
+Rel(admin, shortly, "Monitors platform, manages users", "HTTPS")
+Rel(browserClient, shortly, "Follows short URL, gets redirected to original URL", "HTTPS")
+Rel(shortly, emailProvider, "Sends notification emails (planned)", "SMTP/API")
+
+SHOW_LEGEND()
+
+@enduml

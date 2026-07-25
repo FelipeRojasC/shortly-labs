@@ -1,0 +1,54 @@
+@startuml c4-container
+
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Container diagram for Shortly
+
+Person(endUser, "End User", "Creates, manages, and shares short URLs.")
+Person(admin, "Administrator", "Manages users and monitors platform usage.")
+System_Ext(browserClient, "Web Browser / HTTP Client", "Follows short URLs.")
+
+System_Boundary(shortly, "Shortly") {
+
+    Container(webApp, "Web App", "ASP.NET Core Razor Pages", "Server-rendered UI: login, registration, link dashboard.")
+    Container(apiGateway, "API Gateway", "ASP.NET Core / YARP", "Single entry point. Routes requests, applies rate limiting, forwards auth context.")
+
+    Container(urlService, "URL Service", "ASP.NET Core Minimal API", "Creates and manages short URLs (POST/GET/DELETE /api/urls).")
+    Container(redirectService, "Redirect Service", "ASP.NET Core Minimal API", "Resolves a short code to its original URL with minimal latency (GET /{shortUrl}).")
+    Container(statsService, "Stats Service", "ASP.NET Core Minimal API", "Aggregates and serves click/usage statistics (GET /api/stats).")
+    Container(identityService, "Identity Service", "ASP.NET Core Minimal API", "Authentication and authorization. (Planned)")
+
+    ContainerDb(urlDb, "URL Database", "PostgreSQL", "Stores link records: id, url, shortUrl, userId.")
+    ContainerDb(statsDb, "Stats Database", "PostgreSQL", "Stores aggregated click counts per link.")
+    ContainerDb(identityDb, "Identity Database", "PostgreSQL", "Stores user credentials and roles. (Planned)")
+    ContainerDb(redirectCache, "Redirect Cache", "Redis", "Caches shortUrl -> originalUrl mapping for fast lookups.")
+    Container(clickBroker, "Click Events Broker", "RabbitMQ", "Queues click events published by Redirect Service for async processing.")
+}
+
+Rel(endUser, webApp, "Uses", "HTTPS")
+Rel(admin, webApp, "Manages users, views usage", "HTTPS")
+Rel(browserClient, apiGateway, "Follows short URL", "HTTPS")
+
+Rel(webApp, apiGateway, "Calls API", "HTTPS/JSON,XML")
+
+Rel(apiGateway, urlService, "Routes /api/urls/*", "HTTP/REST")
+Rel(apiGateway, redirectService, "Routes /{shortUrl}", "HTTP/REST")
+Rel(apiGateway, statsService, "Routes /api/stats", "HTTP/REST")
+Rel(apiGateway, identityService, "Routes /auth/*", "HTTP/REST")
+
+Rel(urlService, urlDb, "Reads from and writes to", "SQL (EF Core)")
+Rel(urlService, redirectCache, "Invalidates/populates on create or delete", "Redis protocol")
+
+Rel(redirectService, redirectCache, "Reads shortUrl mapping (cache-first)", "Redis protocol")
+Rel(redirectService, urlDb, "Reads on cache miss", "SQL (read replica)")
+Rel(redirectService, clickBroker, "Publishes click event", "AMQP (async)")
+
+Rel(statsService, clickBroker, "Consumes click events", "AMQP (async)")
+Rel(statsService, statsDb, "Writes aggregated stats", "SQL (EF Core)")
+
+Rel(identityService, identityDb, "Reads from and writes to", "SQL (EF Core)")
+Rel(webApp, identityService, "Login / register", "HTTP/REST")
+
+SHOW_LEGEND()
+
+@enduml

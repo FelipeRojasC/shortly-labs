@@ -20,8 +20,9 @@ Docker y Docker Compose.
    Copy-Item .env.example .env
    ```
 2. Ajusta `WEB_PORT` (puerto en tu máquina) o `ADMIN_PASSWORD` (contraseña del usuario
-   administrador sembrado al iniciar) si lo necesitas. Los valores por defecto funcionan sin
-   cambios para levantar el proyecto localmente.
+   administrador sembrado al iniciar) si lo necesitas. El valor por defecto de este proyecto es
+   `8081` (no `8080`), porque el puerto 8080 puede estar ocupado por otro servicio local (por
+   ejemplo, Apache/XAMPP) — si en tu máquina el 8080 está libre, puedes usarlo sin problema.
 
 ## Construir y levantar la aplicación
 
@@ -40,8 +41,8 @@ docker compose up --build
   docker compose up --build -d
   ```
 
-Una vez arriba, la aplicación queda disponible en `http://localhost:8080` (o el puerto que
-hayas definido en `WEB_PORT`). El endpoint de salud está en `http://localhost:8080/health`.
+Una vez arriba, la aplicación queda disponible en `http://localhost:8081` (o el puerto que
+hayas definido en `WEB_PORT`). El endpoint de salud está en `http://localhost:8081/health`.
 
 ## Verificar el estado del contenedor
 

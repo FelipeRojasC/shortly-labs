@@ -1,0 +1,43 @@
+# Build artifacts
+bin/
+obj/
+**/bin/
+**/obj/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# IDE / editor
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docs and markdown (not needed inside the image)
+docs/
+*.md
+
+# Local env files (secrets should never end up in the image)
+.env
+.env.*.local
+
+# Logs and local databases (generated at runtime, not part of the build)
+*.log
+*.db
+*.db-shm
+*.db-wal
+
+# Docker-related files themselves
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Node (in case any frontend tooling gets added later)
+node_modules/

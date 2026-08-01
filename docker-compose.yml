@@ -1,0 +1,46 @@
+services:
+  shortly-web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shortly-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      # Overrides appsettings.json's relative "Data Source=database.db" so the
+      # SQLite file is written inside the mounted volume instead of the
+      # container's ephemeral filesystem.
+      ConnectionStrings__AppDbContext: "Data Source=/app/data/database.db"
+      Seed__AdminPassword: "${ADMIN_PASSWORD:-admin123}"
+    volumes:
+      # Named volume: persists the SQLite database file across
+      # container restarts/recreations.
+      - shortly-db-data:/app/data
+    networks:
+      - shortly-network
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+
+  # NOTE on "shortly-db": the current stack uses SQLite (an embedded,
+  # file-based database, not a client/server engine), which the Lab 5
+  # statement explicitly allows ("SQL Server, PostgreSQL, or SQLite
+  # depending on the current stack"). SQLite has no server process to run
+  # as its own container, so there is no separate "shortly-db" service here.
+  # Its role is filled by the named volume "shortly-db-data" above, which
+  # persists database.db independently of the shortly-web container's
+  # lifecycle. See docs/docker.md for details.
+
+networks:
+  shortly-network:
+    driver: bridge
+
+volumes:
+  shortly-db-data:

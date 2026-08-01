@@ -69,6 +69,9 @@ builder.Services.AddSingleton<IConfigureOptions<CookieAuthenticationOptions>>(sp
 // Registers the authorization service
 builder.Services.AddAuthorization();
 
+// Registers the health checks service (used by Docker's HEALTHCHECK instruction)
+builder.Services.AddHealthChecks();
+
 // Registers repositories and services for dependency injection (scoped lifetime)
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<ILinkRepository, LinkRepository>();
@@ -110,6 +113,9 @@ app.MapOpenApi();
 
 // Serves the Scalar interactive API reference UI at /scalar/v1
 app.MapScalarApiReference();
+
+// Exposes a liveness probe at /health for container orchestration
+app.MapHealthChecks("/health");
 
 // Maps the redirect endpoint GET /{shortUrl} from Endpoints/UrlRedirectEndpoint.cs
 app.MapUrlRedirect();

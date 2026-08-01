@@ -6,13 +6,16 @@ services:
     container_name: shortly-web
     restart: unless-stopped
     ports:
-      - "${WEB_PORT:-8080}:8080"
+      - "${WEB_PORT:-8081}:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Production
       # Overrides appsettings.json's relative "Data Source=database.db" so the
       # SQLite file is written inside the mounted volume instead of the
       # container's ephemeral filesystem.
       ConnectionStrings__AppDbContext: "Data Source=/app/data/database.db"
+      # "shortly-cache" resolves via Docker's internal DNS to the Redis
+      # container below — no IP address needed, just the service name.
+      ConnectionStrings__Redis: "shortly-cache:6379"
       Seed__AdminPassword: "${ADMIN_PASSWORD:-admin123}"
     volumes:
       # Named volume: persists the SQLite database file across
@@ -20,6 +23,8 @@ services:
       - shortly-db-data:/app/data
     networks:
       - shortly-network
+    depends_on:
+      - shortly-cache
     deploy:
       resources:
         limits:
@@ -28,6 +33,25 @@ services:
         reservations:
           cpus: "0.25"
           memory: 128M
+
+  # Bonus: cache service for frequently accessed URLs. Used by LinkService.GetLink
+  # (the method behind the redirect flow) with a cache-first strategy, and by
+  # MemoryCacheTicketStore for cookie-based auth session storage.
+  shortly-cache:
+    image: redis:7-alpine
+    container_name: shortly-cache
+    restart: unless-stopped
+    # No port published to the host — only shortly-web needs to reach it,
+    # over the internal Docker network.
+    networks:
+      - shortly-network
+    volumes:
+      - shortly-cache-data:/data
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
 
   # NOTE on "shortly-db": the current stack uses SQLite (an embedded,
   # file-based database, not a client/server engine), which the Lab 5
@@ -44,3 +68,4 @@ networks:
 
 volumes:
   shortly-db-data:
+  shortly-cache-data:

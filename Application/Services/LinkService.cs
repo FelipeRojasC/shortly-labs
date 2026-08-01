@@ -1,3 +1,5 @@
+using System.Text.Json;
+using Microsoft.Extensions.Caching.Distributed;
 using Shortly.Application.DTOs;
 using Shortly.Application.Interfaces;
 using Shortly.Domain.Entities;
@@ -6,13 +8,20 @@ namespace Shortly.Application.Services;
 
 public sealed class LinkService : ILinkService
 {
+    private static readonly DistributedCacheEntryOptions CacheOptions = new()
+    {
+        AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
+    };
+
     private readonly ILogger<LinkService> _logger;
     private readonly ILinkRepository _linkRepository;
+    private readonly IDistributedCache _cache;
 
-    public LinkService(ILinkRepository linkRepository, ILogger<LinkService> logger)
+    public LinkService(ILinkRepository linkRepository, IDistributedCache cache, ILogger<LinkService> logger)
     {
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _linkRepository = linkRepository ?? throw new ArgumentNullException(nameof(linkRepository));
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
     }
 
     public async Task<LinkResponse> CreateLink(string url, long userId)
@@ -43,6 +52,13 @@ public sealed class LinkService : ILinkService
         link.IncrementClicks();
         await _linkRepository.SaveChangesAsync();
 
+        // Refreshes the cached copy so the next redirect sees the updated click count
+        // instead of a stale one until the TTL expires.
+        await _cache.SetStringAsync(
+            CacheKeyFor(link.ShortUrl),
+            JsonSerializer.Serialize(LinkResponse.From(link)),
+            CacheOptions);
+
         _logger.LogInformation("Clicks incremented for linkId: {LinkId}. Total clicks: {Clicks}.", link.Id, link.Clicks);
         return LinkResponse.From(link);
     }
@@ -51,6 +67,14 @@ public sealed class LinkService : ILinkService
     {
         _logger.LogDebug("Retrieving link with shortUrl: {ShortUrl}", shortUrl);
 
+        var cacheKey = CacheKeyFor(shortUrl);
+        var cached = await _cache.GetStringAsync(cacheKey);
+        if (cached is not null)
+        {
+            _logger.LogInformation("Cache hit for shortUrl: {ShortUrl}.", shortUrl);
+            return JsonSerializer.Deserialize<LinkResponse>(cached)!;
+        }
+
         var link = await _linkRepository.GetByShortUrlAsync(shortUrl);
         if (link is null)
         {
@@ -58,8 +82,11 @@ public sealed class LinkService : ILinkService
             throw new KeyNotFoundException($"No link found with shortUrl '{shortUrl}'.");
         }
 
-        _logger.LogInformation("Link retrieved successfully with shortUrl: {ShortUrl} and id: {Id}.", link.ShortUrl, link.Id);
-        return LinkResponse.From(link);
+        var response = LinkResponse.From(link);
+        await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(response), CacheOptions);
+
+        _logger.LogInformation("Cache miss for shortUrl: {ShortUrl}. Link retrieved from database and cached.", shortUrl);
+        return response;
     }
 
     public async Task<List<LinkResponse>> GetAllLinks()
@@ -79,4 +106,6 @@ public sealed class LinkService : ILinkService
         _logger.LogInformation("Retrieved {Count} links for userId: {UserId}.", links.Count, userId);
         return links.Select(LinkResponse.From).ToList();
     }
+
+    private static string CacheKeyFor(string shortUrl) => $"link:{shortUrl}";
 }

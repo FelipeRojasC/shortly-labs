@@ -45,8 +45,15 @@ builder.Services.AddOpenApi(options =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("AppDbContext")));
 
-// Configures a volatile server-side ticket store (auth state lost on restart)
-builder.Services.AddDistributedMemoryCache();
+// Registers Redis as the IDistributedCache implementation. This backs both the
+// cookie ticket store (MemoryCacheTicketStore, despite its name — it depends on
+// IDistributedCache, not IMemoryCache) and the link lookup cache used by
+// LinkService.GetLink for the redirect flow (Lab 5 bonus: cache service).
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("Redis");
+    options.InstanceName = "shortly:";
+});
 builder.Services.AddSingleton<MemoryCacheTicketStore>();
 
 // Configures cookie authentication with a server-side ticket store
